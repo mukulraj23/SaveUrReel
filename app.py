@@ -247,19 +247,13 @@ def download():
 
         return send_file(
 
-
             output_file,
-
 
             as_attachment=True,
 
+            download_name=f"SaveUrReel.{final_ext}"
 
-            download_name:
-
-            f"SaveUrReel.{final_ext}"
-
-
-        )
+)
 
 
 
