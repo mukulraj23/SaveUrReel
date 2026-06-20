@@ -5,6 +5,10 @@ import uuid
 import time
 import threading
 
+import imageio_ffmpeg
+
+ffmpeg_path = imageio_ffmpeg.get_ffmpeg_exe()
+
 
 app = Flask(__name__)
 
@@ -175,20 +179,19 @@ def download():
 
             options = {
 
-
-
                 "format":
-                "best[ext=mp4]",
+                "bestvideo[vcodec^=avc1]+bestaudio[ext=m4a]/best",
 
+                "merge_output_format":
+                "mp4",
 
+                "ffmpeg_location":
+                ffmpeg_path,
 
                 "outtmpl":
-
                 f"{DOWNLOAD_FOLDER}/{filename}.mp4"
 
-
-
-            }
+}
 
 
 
