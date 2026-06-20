@@ -178,14 +178,7 @@ def download():
 
 
                 "format":
-
-                "bestvideo[vcodec^=avc1]+bestaudio[ext=m4a]/best",
-
-
-
-                "merge_output_format":
-
-                "mp4",
+                "best[ext=mp4]",
 
 
 
