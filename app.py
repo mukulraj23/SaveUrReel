@@ -4,22 +4,31 @@ import os
 import uuid
 import time
 import threading
-
 import imageio_ffmpeg
 
-ffmpeg_path = imageio_ffmpeg.get_ffmpeg_exe()
 
 
 app = Flask(__name__)
 
 
+
 DOWNLOAD_FOLDER = "downloads"
 
-os.makedirs(DOWNLOAD_FOLDER, exist_ok=True)
+
+os.makedirs(
+    DOWNLOAD_FOLDER,
+    exist_ok=True
+)
 
 
 
-# AUTO DELETE AFTER 2 MINUTES
+ffmpeg_path = imageio_ffmpeg.get_ffmpeg_exe()
+
+
+
+
+
+# DELETE FILES AFTER 2 MINUTES
 
 def auto_delete_files():
 
@@ -32,23 +41,26 @@ def auto_delete_files():
 
             for file in os.listdir(DOWNLOAD_FOLDER):
 
+
                 path = os.path.join(
                     DOWNLOAD_FOLDER,
                     file
                 )
 
 
+
                 if os.path.isfile(path):
 
 
-                    created_time = os.path.getctime(path)
+                    file_age = now - os.path.getctime(path)
 
 
 
-                    if now - created_time > 120:
+                    if file_age > 120:
 
 
                         os.remove(path)
+
 
                         print(
                             "Deleted:",
@@ -56,8 +68,8 @@ def auto_delete_files():
                         )
 
 
-
         except Exception as e:
+
 
             print(
                 "Delete error:",
@@ -67,6 +79,8 @@ def auto_delete_files():
 
 
         time.sleep(30)
+
+
 
 
 
@@ -86,11 +100,12 @@ def home():
 
 
 
+
 @app.route("/download", methods=["POST"])
 def download():
 
 
-    url = request.form["url"]
+    url = request.form.get("url")
 
 
     filename = str(uuid.uuid4())
@@ -100,47 +115,82 @@ def download():
     try:
 
 
-
-        # GET INFO FIRST
+        # GET INFO
 
         with yt_dlp.YoutubeDL({}) as ydl:
 
 
             info = ydl.extract_info(
-
                 url,
-
                 download=False
-
             )
 
 
 
-
-        has_video = False
-
+        is_video = False
 
 
-        if "formats" in info:
+
+        for f in info.get("formats", []):
 
 
-            for f in info["formats"]:
+            if f.get("vcodec") != "none":
 
 
-                if f.get("vcodec") != "none":
+                is_video = True
 
-
-                    has_video = True
-
-                    break
+                break
 
 
 
 
 
-        # IMAGE POST
+        # VIDEO
 
-        if not has_video:
+        if is_video:
+
+
+            output_file = (
+                f"{DOWNLOAD_FOLDER}/{filename}.mp4"
+            )
+
+
+            options = {
+
+
+                "format":
+                "bestvideo[vcodec^=avc1]+bestaudio[ext=m4a]/best",
+
+
+
+                "merge_output_format":
+                "mp4",
+
+
+
+                "ffmpeg_location":
+                ffmpeg_path,
+
+
+
+                "outtmpl":
+                output_file
+
+            }
+
+
+
+            final_ext = "mp4"
+
+
+
+
+
+
+
+        # IMAGE
+
+        else:
 
 
 
@@ -151,54 +201,38 @@ def download():
 
 
 
+            output_file = (
+
+                f"{DOWNLOAD_FOLDER}/{filename}.{ext}"
+
+            )
+
+
+
             options = {
 
 
-                "format":"best",
+                "format":
+                "best",
+
 
 
                 "outtmpl":
-
-                f"{DOWNLOAD_FOLDER}/{filename}.%(ext)s"
+                output_file
 
 
             }
 
 
 
-
-        # VIDEO REEL / VIDEO POST
-
-        else:
-
-
-
-            ext = "mp4"
-
-
-
-            options = {
-
-                "format":
-                "bestvideo[vcodec^=avc1]+bestaudio[ext=m4a]/best",
-
-                "merge_output_format":
-                "mp4",
-
-                "ffmpeg_location":
-                ffmpeg_path,
-
-                "outtmpl":
-                f"{DOWNLOAD_FOLDER}/{filename}.mp4"
-
-}
-
+            final_ext = ext
 
 
 
 
 
         # DOWNLOAD
+
 
         with yt_dlp.YoutubeDL(options) as ydl:
 
@@ -210,28 +244,20 @@ def download():
 
 
 
-        file_path = (
-
-            f"{DOWNLOAD_FOLDER}/{filename}.{ext}"
-
-        )
-
-
-
-
 
         return send_file(
 
 
-            file_path,
+            output_file,
 
 
             as_attachment=True,
 
 
-            download_name=
+            download_name:
 
-            f"SaveUrReel.{ext}"
+            f"SaveUrReel.{final_ext}"
+
 
         )
 
@@ -243,6 +269,8 @@ def download():
     except Exception as e:
 
 
+        print(e)
+
 
         return str(e)
 
@@ -252,23 +280,30 @@ def download():
 
 
 
+
+
+# START CLEANER THREAD
+
+cleanup_thread = threading.Thread(
+
+    target=auto_delete_files
+
+)
+
+
+cleanup_thread.daemon = True
+
+
+cleanup_thread.start()
+
+
+
+
+
+
+
+
 if __name__ == "__main__":
-
-
-
-    cleanup_thread = threading.Thread(
-
-        target=auto_delete_files
-
-    )
-
-
-    cleanup_thread.daemon = True
-
-
-    cleanup_thread.start()
-
-
 
 
     app.run(
